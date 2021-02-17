@@ -55,27 +55,33 @@ $ gcloud projects add-iam-policy-binding ${PROJECT_ID} \
     --role roles/editor
 ```
 
-- Step 6: Bind the Google Service Account created in step 5 to a Kubernetes Service Account.
+- Step 6: Optionally create a namespace to keep track of the runners
 
 ```sh
-$ kubectl create serviceaccount gke-runner-org-sa
+$ kubectl create ns github
+```
+
+- Step 7: Bind the Google Service Account created in step 5 to a Kubernetes Service Account.
+
+```sh
+$ kubectl create serviceaccount -n github gke-runner-org-sa
 $ gcloud iam service-accounts add-iam-policy-binding \
     --role roles/iam.workloadIdentityUser \
-    --member "serviceAccount:${PROJECT_ID}.svc.id.goog[default/gke-runner-org-sa]" \
+    --member "serviceAccount:${PROJECT_ID}.svc.id.goog[github/gke-runner-org-sa]" \
     runner-org-sa@${PROJECT_ID}.iam.gserviceaccount.com
-$ kubectl annotate serviceaccount \
+$ kubectl annotate serviceaccount -n github \
     gke-runner-org-sa \
     iam.gke.io/gcp-service-account=runner-org-sa@${PROJECT_ID}.iam.gserviceaccount.com
 ```
 
-- Step 7: Store the Github Token in a secret and set the image for the deployment.
+- Step 8: Store the Github Token in a secret and set the image for the deployment.
 
 ```sh
-$ kubectl create secret generic runner-org-k8s-secret --from-literal=GITHUB_TOKEN=$GITHUB_TOKEN
+$ kubectl create secret generic runner-org-k8s-secret -n github --from-literal=GITHUB_TOKEN=$GITHUB_TOKEN
 $ kustomize edit set image gcr.io/PROJECT_ID/runner-org:latest=gcr.io/$PROJECT_ID/runner-org:latest
 ```
 
-- Step 8: Create the env file which is used by Kustomize to generate a config map.
+- Step 9: Create the env file which is used by Kustomize to generate a config map.
 
 ```sh
 $ cat > runner.env  << EOF
@@ -84,7 +90,7 @@ ACTIONS_RUNNER_INPUT_URL=${REPO_URL}
 EOF
 ```
 
-- Step 9: Deploy the Self Hosted Runner deployment using Kustomize.
+- Step 10: Deploy the Self Hosted Runner deployment using Kustomize.
 
 ```sh
 $ kustomize build . | kubectl apply -f -
